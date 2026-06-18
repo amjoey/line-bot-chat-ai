@@ -59,9 +59,8 @@ export async function callGemini(prompt: string): Promise<string> {
         thinkingConfig: {
           thinkingBudget: 0,
         },
+        abortSignal: controller.signal,
       },
-      // @ts-expect-error -- abort signal is supported at the transport level
-      signal: controller.signal,
     });
 
     const finishReason = response.candidates?.[0]?.finishReason;
@@ -88,7 +87,12 @@ export async function callGemini(prompt: string): Promise<string> {
 
     return text;
   } catch (err) {
-    console.error("[GEMINI_TIMEOUT_OR_ERROR]", err);
+    const status = (err as { status?: number })?.status;
+    if (status === 429) {
+      console.error("[GEMINI_QUOTA_EXCEEDED]", err);
+    } else {
+      console.error("[GEMINI_TIMEOUT_OR_ERROR]", err);
+    }
     return DEFAULT_REPLY;
   } finally {
     clearTimeout(timeoutId);
